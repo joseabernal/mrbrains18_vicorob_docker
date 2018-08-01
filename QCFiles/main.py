@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import nibabel as nib
 
@@ -5,14 +6,44 @@ from utils.extraction import extract_patches
 from utils.reconstruction import perform_voting
 from network import generate_combined_model
 
+input_dir = 'input'
+output_dir = 'output'
+
 def execute_robex(input_filename, output_filename) :
+    command = 'sh tools/ROBEX/runROBEX.sh {} {}'
+    os.system(command.format(input_filename, output_filename))
+
+def binarise_brain_mask(input_filename, output_filename) :
+    command = 'fsl5.0-fslmaths {} -thr 0 -bin {}'
+    os.system(command.format(input_filename, output_filename))
+
 def execute_fast(input_filename, output_filename) :
-def execute_spm(input_filename, output_filename) :
+    command = 'fsl5.0-fast -S 1 -n 3 -t 1 {} -o {}'
+    os.system(command.format(input_filename, output_filename))
+
+def execute_unzip(input_filename) :
+    command = 'gunzip {}'
+    os.system(command.format(input_filename))
+
+def execute_zip() :
+    command = 'gzip output/c{}reg_T1_brain.nii'
+    for i in range(1, 6) :
+        os.system(command.format(i))
+    command = 'gzip output/reg_T1_brain.nii'
+    os.system(command.format(i))
+
+def execute_spm() :
+    command = 'sh tools/run_spm12.sh /usr/local/MATLAB/MATLAB_Compiler_Runtime/v84 batch tools/matlabbatch.mat'
+    os.system(command)
+
 def execute_segmentation(files, output_filename) :
     actual_num_channels = 6
+    channels_to_normalise = [0, 1]
     curr_patch_shape = (32, 32, 16)
     model_a_idxs = [0, 1, 2, 3, 4, 5]
     model_b_idxs = [0, 1, 2, 6, 7, 8]
+    num_channels = 9
+    num_classes = 9
     output_patch_shape = (32, 32, 16)
     scale = 1
     step = (8, 8, 4)
@@ -64,6 +95,17 @@ def execute_pipeline() :
     files = ['segm.nii.gz', 'pre/FLAIR.nii.gz', 'pre/reg_T1.nii.gz', 'reg_T1_brain_mask.nii.gz',
              'c1reg_T1_brain.nii.gz', 'c2reg_T1_brain.nii.gz', 'c3reg_T1_brain.nii.gz',
              'reg_T1_brain_pve_0.nii.gz', 'reg_T1_brain_pve_1.nii.gz', 'reg_T1_brain_pve_2.nii.gz']
+
+    robex_in_filename = os.path.join(input_dir, files[2])
+    robex_out_filename = os.path.join(output_dir, files[3].replace('_mask', ''))
+    bin_mask_out_filename = os.path.join(output_dir, files[3])
+
+    #execute_robex(robex_in_filename, robex_out_filename)
+    #binarise_brain_mask(robex_out_filename, bin_mask_out_filename)
+    #execute_fast(robex_out_filename, robex_out_filename)
+    #execute_unzip(robex_out_filename)
+    #execute_spm()
+    execute_zip()
 
 if __name__ == "__main__" :
     execute_pipeline()

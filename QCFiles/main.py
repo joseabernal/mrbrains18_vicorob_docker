@@ -36,6 +36,10 @@ def execute_spm() :
     command = 'sh tools/run_spm12.sh /usr/local/MATLAB/MATLAB_Compiler_Runtime/v84 batch tools/matlabbatch.mat'
     os.system(command)
 
+def clean_output_dir() :
+    command = 'rm output/*reg_T1_brain*'
+    os.system(command)
+
 def execute_segmentation(files, output_filename) :
     actual_num_channels = 6
     channels_to_normalise = [0, 1]
@@ -51,17 +55,15 @@ def execute_segmentation(files, output_filename) :
     patch_shape = (actual_num_channels, ) + curr_patch_shape
     output_shape = (num_classes, np.product(curr_patch_shape))
 
-    filename = volume_pattern.format(folder, files[1])
-    volume_data = nib.load(filename)
-
+    volume_data = nib.load(files[1])
     for i, a_file in enumerate(files) :
         if i == 0 :
             continue
 
-        volume_init = nib.load(files[i]).get_data()
-
+        volume_init = nib.load(a_file).get_data()
         patches = extract_patches(volume_init, curr_patch_shape, step)
         patches = patches.reshape((-1, 1, ) + curr_patch_shape)
+
         if i == 1 :
             N = len(patches)
             X_test = np.empty((N, num_channels, ) + curr_patch_shape)
@@ -70,20 +72,21 @@ def execute_segmentation(files, output_filename) :
         del patches
     
     normalisation_info = np.load('models/model_normalisation_data.npy').item()
-    for i in range(0, 7) :
-        X_mean = normalisation_info[i][0]
-        X_std = normalisation_info[i][1]
+    for model_idx in range(0, 7) :
+        X_mean = normalisation_info[model_idx][0]
+        X_std = normalisation_info[model_idx][1]
 
         model = generate_combined_model(patch_shape, output_shape, num_classes, scale)
-        model.load_weights(model_pattern.format(curr_patch_shape, i))
+        model.load_weights(model_pattern.format(curr_patch_shape, model_idx))
 
+        X_test_tmp = np.copy(X_test)
         for c in channels_to_normalise :
             X_test_tmp[:, c] = (X_test[:, c] - X_mean[c]) / X_std[c]
 
-        pred = model.predict([X_test_tmp[:, model_a_idxs], X_test_tmp[:, model_b_idxs]], verbose=2)[2]
+        pred = model.predict([X_test_tmp[:, model_a_idxs], X_test_tmp[:, model_b_idxs]], verbose=1)[2]
         pred = pred.reshape((len(pred), ) + output_patch_shape + (num_classes, ))
 
-        acumm_pred = pred if i == 0 else acumm_pred + pred
+        acumm_pred = pred if model_idx == 0 else acumm_pred + pred
 
     volume = perform_voting(
         acumm_pred.reshape((-1, ) + curr_patch_shape + (num_classes, )),
@@ -99,13 +102,19 @@ def execute_pipeline() :
     robex_in_filename = os.path.join(input_dir, files[2])
     robex_out_filename = os.path.join(output_dir, files[3].replace('_mask', ''))
     bin_mask_out_filename = os.path.join(output_dir, files[3])
+    seg_out_filename = os.path.join(output_dir, 'result.nii.gz')
 
-    #execute_robex(robex_in_filename, robex_out_filename)
-    #binarise_brain_mask(robex_out_filename, bin_mask_out_filename)
-    #execute_fast(robex_out_filename, robex_out_filename)
-    #execute_unzip(robex_out_filename)
-    #execute_spm()
+    execute_robex(robex_in_filename, robex_out_filename)
+    binarise_brain_mask(robex_out_filename, bin_mask_out_filename)
+    execute_fast(robex_out_filename, robex_out_filename)
+    execute_unzip(robex_out_filename)
+    execute_spm()
     execute_zip()
+    execute_segmentation(
+        [os.path.join(input_dir, f) if 'pre/' in f else os.path.join(output_dir, f) for f in files],
+        seg_out_filename)
+    clean_output_dir()
+
 
 if __name__ == "__main__" :
     execute_pipeline()

@@ -75,7 +75,9 @@ def get_pooling(input, num_filters) :
     return PReLU()(a)
 
 def get_deconv_layer(input, num_filters) :
-    return Deconv3D(num_filters, kernel_size=(2, 2, 2), strides=(2, 2, 2))(input)
+    a = Deconv3D(num_filters, kernel_size=(2, 2, 2), strides=(2, 2, 2))(input)
+    a = BatchNormalization(axis=1)(a)
+    return PReLU()(a)
 
 def get_conv_fc(input, num_filters=4) :
     fc = Conv3D(num_filters, kernel_size=(1, 1, 1))(input)

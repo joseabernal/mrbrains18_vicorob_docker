@@ -4,8 +4,8 @@ echo 'Removing any previous containers'
 sudo docker rm $(docker ps -a -q)
 
 # Delete all images
-echo 'Delete all previous images'
-docker rmi $(docker images -q)
+# echo 'Delete all previous images'
+# docker rmi $(docker images -q)
 
 #Delete the previous lr_model_img
 echo 'Removing framework_img image'

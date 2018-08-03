@@ -6,8 +6,8 @@ from utils.extraction import extract_patches
 from utils.reconstruction import perform_voting
 from network import generate_combined_model
 
-input_dir = 'input'
-output_dir = 'output'
+input_dir = '/input'
+output_dir = '/output'
 
 def execute_robex(input_filename, output_filename) :
     command = 'sh tools/ROBEX/runROBEX.sh {} {}'
@@ -26,10 +26,10 @@ def execute_unzip(input_filename) :
     os.system(command.format(input_filename))
 
 def execute_zip() :
-    command = 'gzip output/c{}reg_T1_brain.nii'
+    command = 'gzip ' + os.path.join(output_dir, 'c{}reg_T1_brain.nii')
     for i in range(1, 6) :
         os.system(command.format(i))
-    command = 'gzip output/reg_T1_brain.nii'
+    command = 'gzip ' + os.path.join(output_dir,'reg_T1_brain.nii')
     os.system(command.format(i))
 
 def execute_spm() :
@@ -37,11 +37,10 @@ def execute_spm() :
     os.system(command)
 
 def clean_output_dir() :
-    command = 'rm output/*reg_T1_brain*'
+    command = 'rm ' + os.path.join(output_dir, '*reg_T1_brain*')
     os.system(command)
 
 def execute_segmentation(files, output_filename) :
-    actual_num_channels = 6
     channels_to_normalise = [0, 1]
     curr_patch_shape = (32, 32, 16)
     model_a_idxs = [0, 1, 2, 3, 4, 5]
@@ -52,7 +51,7 @@ def execute_segmentation(files, output_filename) :
     scale = 1
     step = (8, 8, 4)
     model_pattern = 'models/unet_{}_{}_3C_seg_fast_spm.h5'
-    patch_shape = (actual_num_channels, ) + curr_patch_shape
+    patch_shape = (6, ) + curr_patch_shape
     output_shape = (num_classes, np.product(curr_patch_shape))
 
     volume_data = nib.load(files[1])
